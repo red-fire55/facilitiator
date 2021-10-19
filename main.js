@@ -139,5 +139,13 @@ ipcMain.on("hide-img", (e, data) => {
 });
 
 ipcMain.on("open-msg", (e, data) => {
-  secWindow.webContents.send("msg-show", data.img);
+  secWindow.webContents.send("msg-show", data.msg);
+});
+
+ipcMain.on("show-words", (e, data) => {
+  secWindow.webContents.send("words-show", data);
+});
+
+ipcMain.on("hide-words", (e, data) => {
+  secWindow.webContents.send("words-hide", data);
 });

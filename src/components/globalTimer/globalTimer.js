@@ -2,6 +2,7 @@ import React, { Component, useEffect, useState } from "react";
 import BottomNavigationAction from "@mui/material/BottomNavigationAction";
 import BottomNavigation from "@mui/material/BottomNavigation";
 import AccessIcon from "@mui/icons-material/AccessTime";
+import db from "../../database/index";
 
 let fromTime = new Date(0, 0, 0, 0, 0, 0, 0);
 let globalTimer = (props) => {
@@ -24,6 +25,20 @@ let globalTimer = (props) => {
         () => (timer <= 59 ? setTimer(timer + 1) : setTime()),
         1000
       );
+    } else {
+      clearInterval(timerId);
+
+      let session_id = localStorage.getItem("sessionId");
+      db.sessions
+        .where("id")
+        .equals(Number(session_id))
+        .modify({
+          globale_time: {
+            seconeds: timer,
+            minutes: minutes,
+            hours: hours,
+          },
+        });
     }
 
     return () => clearInterval(timerId);

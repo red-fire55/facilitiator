@@ -15,6 +15,7 @@ import TableRow from "@mui/material/TableRow";
 import Paper from "@mui/material/Paper";
 import download from "downloadjs";
 import { ipcRenderer } from "electron";
+import db from "../../database/index";
 
 let storyTelling = (props) => {
   //data declaration
@@ -29,7 +30,7 @@ let storyTelling = (props) => {
   let [aTMin, setATMin] = useState(0);
   let [recordTime, setRecordTime] = useState(null);
   let [openSnack, setSnack] = useState(false);
-  const rows = [
+  let rows = [
     createData(159, 6.0),
     createData(237, 9.0),
     createData(262, 16.0),
@@ -116,7 +117,7 @@ let storyTelling = (props) => {
     );
 
     canvasAudio[1].setAttribute("hidden", true);
-    endStage3()
+    endStage3();
   };
 
   //listener on the finish of the record
@@ -140,6 +141,12 @@ let storyTelling = (props) => {
   let onStop2 = (audioData) => {
     setClicked((clicked = false));
     download(audioData.blob);
+    let stage3 = document.getElementsByClassName("stage3");
+    let stage3End = document.getElementsByClassName("stage3End");
+
+    stage3[0].setAttribute("hidden", true);
+    stage3[0].style.display = "none";
+    stage3End[0].removeAttribute("hidden");
   };
   //show image method
   let showImg = () => {
@@ -172,45 +179,72 @@ let storyTelling = (props) => {
   let initStage3 = () => {
     openSnackbar();
     let stage2End = document.getElementsByClassName("stage2End");
-    let stage3End = document.getElementsByClassName("stage3End");
+    let stage3Start = document.getElementsByClassName("stage3Start");
     let pageTitle = document.getElementsByClassName("pageTitle");
     stage2End[0].setAttribute("hidden", true);
-    stage3End[0].removeAttribute("hidden");
+    stage3Start[0].removeAttribute("hidden");
     pageTitle[0].innerText = "Reading";
-    setATSec((aTSec = 0));
-    setATMin((aTMin = 0));
+
+    // save first record time into seconeds and minutes
+    db.sessions
+      .add({
+        grecord_time1: {
+          seconeds: aTSec,
+          minutes: aTMin,
+        },
+      })
+      .then((res) => {
+        setATSec((aTSec = 0));
+        setATMin((aTMin = 0));
+        localStorage.setItem("sessionId", res);
+      });
   };
 
   let startStage3 = () => {
-    let stage3End = document.getElementsByClassName("stage3End");
+    let stage3Start = document.getElementsByClassName("stage3Start");
     let stage3 = document.getElementsByClassName("stage3");
-    stage3End[0].setAttribute("hidden", true);
+    stage3Start[0].setAttribute("hidden", true);
     stage3[0].removeAttribute("hidden");
     stage3[0].style.display = "flex";
     start2();
+    ipcRenderer.send("show-words",rows)
   };
 
   //end stage 3
-  let endStage3 = () => {
-    let stage3 = document.getElementsByClassName("stage3");
-    let stage3End = document.getElementsByClassName("stage3End");
-    stage3[0].setAttribute("hidden", hidden);
-    stage3[0].style.display = "none";
-    stage3End[0].removeAttribute("hidden");
-  };
+  let endStage3 = () => {};
 
   // end session
   let endSession = () => {
+    ipcRenderer.send("hide-words")
     let stage3End = document.getElementsByClassName("stage3End");
     let sessionEnd = document.getElementsByClassName("endSession");
-    stage3End[0].setAttribute("hidden", true)
-    sessionEnd[0].removeAttribute("hidden")
-  }
+    stage3End[0].setAttribute("hidden", true);
+    sessionEnd[0].removeAttribute("hidden");
+
+    let session_id = localStorage.getItem("sessionId");
+
+    db.sessions
+      .where("id")
+      .equals(Number(session_id))
+      .modify({
+        record_time2: {
+          seconeds: aTSec,
+          minutes: aTMin,
+        },
+      })
+      .then(() => {
+        setATSec((aTSec = 0));
+        setATMin((aTMin = 0));
+      });
+  };
 
   //finish session
   let finish = () => {
-    props.history.push("/")
-  }
+    props.onStart(false)
+    setTimeout(()=>{
+      props.history.go(0)
+    },3000)
+  };
 
   //render method
   return (
@@ -336,7 +370,7 @@ let storyTelling = (props) => {
           style={{ marginTop: "10rem" }}
           onClick={initStage3}
         >
-          save and continue
+          save and proceed
         </Button>
       </div>
       <SnackBar
@@ -353,7 +387,7 @@ let storyTelling = (props) => {
           position: "relative",
         }}
         hidden
-        className="stage3End"
+        className="stage3Start"
       >
         <h4
           style={{
@@ -452,7 +486,7 @@ let storyTelling = (props) => {
       >
         <h2 style={{ width: "100%", textAlign: "center" }}>All Done</h2>
         <Button variant="contained" onClick={finish}>
-          save and proceed
+          Finish Session
         </Button>
       </div>
     </div>

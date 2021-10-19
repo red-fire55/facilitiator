@@ -15,7 +15,7 @@ import Global from "./globalTimer/globalTimer.js";
 
 //views
 import Home from "./Home.js";
-import storyTelling from "./newSession/storyTelling.js";
+import StoryTelling from "./newSession/storyTelling.js";
 
 // main app method
 class App extends Component {
@@ -24,10 +24,11 @@ class App extends Component {
   };
   handleStart = (val) => {
     this.setState({
-      start: val
-    })
+      start: val,
+    });
   };
-  show = () => {};
+
+
 
   render() {
     return (
@@ -38,7 +39,13 @@ class App extends Component {
             path="/"
             render={(props) => <Home onStart={this.handleStart} {...props} />}
           />
-          <Route path="/storyTelling" component={storyTelling} exact></Route>
+          <Route
+            path="/storyTelling"
+            render={(props) => (
+              <StoryTelling onStart={this.handleStart} {...props} />
+            )}
+            exact
+          ></Route>
           <Redirect to="/" />
         </Switch>
         <Global start={this.state.start} />

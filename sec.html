@@ -26,6 +26,16 @@
       margin-top: 5rem;
     "
   />
+  <div
+    class="tableContainer"
+    style="
+      width: 80vw;
+      display: none;
+      margin-right: auto;
+      margin-left: auto;
+      margin-top: 5rem;
+    "
+  ></div>
 </body>
 <script>
   const { ipcRenderer } = require("electron");
@@ -42,10 +52,33 @@
   });
   ipcRenderer.on("msg-show", (e, data) => {
     let snackbar = document.querySelector(".snackbar");
-    snackbar.innerHTML = data
+    snackbar.innerHTML = data;
     snackbar.style.display = "block";
-    setTimeout(()=>{
+    setTimeout(() => {
       snackbar.style.display = "none";
-    },1000)
+    }, 1000);
+  });
+
+  ipcRenderer.on("words-show", (e, data) => {
+    let tContainer = document.querySelector(".tableContainer");
+    tContainer.style.display = "block";
+    data.forEach((row) => {
+      let el = document.createElement("div");
+      el.style.backgroundColor = "somkewhite";
+      el.style.color = "black";
+      el.style.boxShadow = "5px 10px white";
+      el.style.width = "100%";
+      el.style.height = "5vh";
+      el.style.fontSize = "3rem";
+      el.style.fontWeight = "700";
+      el.style.textAlign = "center";
+      el.innerHTML = `${row.list1} || ${row.list2}`;
+      tContainer.appendChild(el);
+    });
+  });
+
+  ipcRenderer.on("words-hide", (e, data) => {
+    let tContainer = document.querySelector(".tableContainer");
+    tContainer.style.display = "none";
   });
 </script>
