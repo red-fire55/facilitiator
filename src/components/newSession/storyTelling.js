@@ -5,33 +5,79 @@ import Fab from "@mui/material/Fab";
 import HeadsetMic from "@mui/icons-material/HeadsetMic";
 import AudioReactRecorder, { RecordState } from "audio-react-recorder";
 import Pause from "@mui/icons-material/Pause";
-import download from "downloadjs"
+import SnackBar from "@mui/material/Snackbar";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableContainer from "@mui/material/TableContainer";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
+import Paper from "@mui/material/Paper";
+import download from "downloadjs";
+import { ipcRenderer } from "electron";
 
 let storyTelling = (props) => {
+  //data declaration
   let [sec, setSec] = useState(15);
   let [clicked, setClicked] = useState(false);
   let [record, setRecord] = useState(false);
+  let [record2, setRecord2] = useState(false);
   let [recordeStarted, setRS] = useState(false);
+  let [recordeStarted2, setRS2] = useState(false);
   let [audio, setAudio] = useState(null);
+  let [aTSec, setATSec] = useState(0);
+  let [aTMin, setATMin] = useState(0);
+  let [recordTime, setRecordTime] = useState(null);
+  let [openSnack, setSnack] = useState(false);
+  const rows = [
+    createData(159, 6.0),
+    createData(237, 9.0),
+    createData(262, 16.0),
+  ];
 
-  function usePageViews() {
-    let location = useLocation();
+  function createData(list1, list2) {
+    return { list1, list2 };
   }
 
+  // react hook to set times
   useEffect(() => {
+    //recording timer
+    if (recordeStarted == true || recordeStarted2 == true) {
+      let startTimer = () => {
+        setATSec(aTSec + 1);
+        if (aTSec >= 58) {
+          setATSec((aTSec = 0));
+          setATMin(aTMin + 1);
+        }
+      };
+      let init = setInterval(() => startTimer(), 1000);
+      return () => clearInterval(init);
+    } else {
+      // setATSec((aTSec = 0));
+      // setATMin((aTMin = 0));
+    }
+
+    //img timer
     if (clicked == true) {
       let hide = () => {
         let fImg = document.getElementsByClassName("fImg");
         let fRecorder = document.getElementsByClassName("fRecorder");
         fImg[0].setAttribute("hidden", true);
         fRecorder[0].removeAttribute("hidden");
+        ipcRenderer.send("hide-img", {
+          img: null,
+        });
       };
 
       let init = setInterval(() => (sec >= 1 ? setSec(sec - 1) : hide()), 1000);
       return () => clearInterval(init);
+    } else {
+      let fRecorder = document.getElementsByClassName("fRecorder");
+      fRecorder[0].setAttribute("hidden", true);
     }
   });
 
+  //start recording method
   let start = () => {
     setRS((recordeStarted = true));
     setRecord((record = RecordState.START));
@@ -41,20 +87,61 @@ let storyTelling = (props) => {
     canvasAudio[0].removeAttribute("hidden");
   };
 
+  //start recording method
+  let start2 = () => {
+    setRS2((recordeStarted2 = true));
+    setRecord2((record2 = RecordState.START));
+    let canvasAudio = document.getElementsByClassName(
+      "audio-react-recorder__canvas"
+    );
+    canvasAudio[1].removeAttribute("hidden");
+  };
+
+  //stop recording method
   let stop = () => {
     setRS((recordeStarted = false));
     setRecord((record = RecordState.STOP));
     let canvasAudio = document.getElementsByClassName(
       "audio-react-recorder__canvas"
     );
+
     canvasAudio[0].setAttribute("hidden", true);
   };
-  let onStop = (audioData) => {
-    setAudio((audio = audioData.blob));
-    console.log("audioData", audioData);
-    download(audioData.blob)
+  //stop recording method
+  let stop2 = () => {
+    setRS2((recordeStarted2 = false));
+    setRecord2((record2 = RecordState.STOP));
+    let canvasAudio = document.getElementsByClassName(
+      "audio-react-recorder__canvas"
+    );
+
+    canvasAudio[1].setAttribute("hidden", true);
+    endStage3()
   };
 
+  //listener on the finish of the record
+  let onStop = (audioData) => {
+    setAudio((audio = audioData.blob));
+    setRecordTime(
+      (recordTime = {
+        seconeds: aTSec,
+        minutes: aTMin,
+      })
+    );
+    setClicked((clicked = false));
+    download(audioData.blob);
+    let fRecorder = document.getElementsByClassName("fRecorder");
+    let stage2End = document.getElementsByClassName("stage2End");
+    fRecorder[0].setAttribute("hidden", true);
+    stage2End[0].removeAttribute("hidden");
+  };
+
+  //listener on the finish of the record
+  let onStop2 = (audioData) => {
+    setClicked((clicked = false));
+    download(audioData.blob);
+  };
+  //show image method
   let showImg = () => {
     let x = document.getElementsByClassName("startText"),
       startBtn = document.getElementsByClassName("startButton"),
@@ -64,12 +151,72 @@ let storyTelling = (props) => {
     startBtn[0].setAttribute("hidden", true);
     fImg[0].removeAttribute("hidden");
     setClicked((clicked = true));
+    ipcRenderer.send("show-img", {
+      img: "https://cdn.vuetifyjs.com/images/carousel/planet.jpg",
+    });
   };
 
+  //open snackbar method
+  let openSnackbar = () => {
+    ipcRenderer.send("open-msg", {
+      msg: "very good",
+    });
+  };
+
+  //close snackbar method
+  let closeSnackbar = () => {
+    setSnack((openSnack = false));
+  };
+
+  //initiate phase 3
+  let initStage3 = () => {
+    openSnackbar();
+    let stage2End = document.getElementsByClassName("stage2End");
+    let stage3End = document.getElementsByClassName("stage3End");
+    let pageTitle = document.getElementsByClassName("pageTitle");
+    stage2End[0].setAttribute("hidden", true);
+    stage3End[0].removeAttribute("hidden");
+    pageTitle[0].innerText = "Reading";
+    setATSec((aTSec = 0));
+    setATMin((aTMin = 0));
+  };
+
+  let startStage3 = () => {
+    let stage3End = document.getElementsByClassName("stage3End");
+    let stage3 = document.getElementsByClassName("stage3");
+    stage3End[0].setAttribute("hidden", true);
+    stage3[0].removeAttribute("hidden");
+    stage3[0].style.display = "flex";
+    start2();
+  };
+
+  //end stage 3
+  let endStage3 = () => {
+    let stage3 = document.getElementsByClassName("stage3");
+    let stage3End = document.getElementsByClassName("stage3End");
+    stage3[0].setAttribute("hidden", hidden);
+    stage3[0].style.display = "none";
+    stage3End[0].removeAttribute("hidden");
+  };
+
+  // end session
+  let endSession = () => {
+    let stage3End = document.getElementsByClassName("stage3End");
+    let sessionEnd = document.getElementsByClassName("endSession");
+    stage3End[0].setAttribute("hidden", true)
+    sessionEnd[0].removeAttribute("hidden")
+  }
+
+  //finish session
+  let finish = () => {
+    props.history.push("/")
+  }
+
+  //render method
   return (
     <div
       style={{
-        width: "90vw",
+        width: "75vw",
         marginLeft: "auto",
         marginRight: "auto",
         alignItems: "center",
@@ -82,6 +229,7 @@ let storyTelling = (props) => {
 
           position: "relative",
         }}
+        className="pageTitle"
       >
         Story Telling
       </h3>
@@ -125,7 +273,7 @@ let storyTelling = (props) => {
           Start
         </Button>
       </h3>
-      <h2
+      <div
         style={{
           alignSelf: "center",
           textAlign: "center",
@@ -144,7 +292,7 @@ let storyTelling = (props) => {
           }}
         />
         <h3>{sec}</h3>
-      </h2>
+      </div>
       <h2
         style={{
           alignSelf: "center",
@@ -168,8 +316,145 @@ let storyTelling = (props) => {
           state={record}
           onStop={onStop}
         />
-        <audio src={audio != null? audio : ""}></audio>
+        <span>{`${aTMin} : ${aTSec}`}</span>
       </h2>
+      <div
+        style={{
+          alignSelf: "center",
+          textAlign: "center",
+          marginTop: "5rem",
+          position: "relative",
+        }}
+        hidden
+        className="stage2End"
+      >
+        <h2
+          style={{ textAlign: "center", width: "100%" }}
+        >{`${aTMin} : ${aTSec}`}</h2>
+        <Button
+          variant="contained"
+          style={{ marginTop: "10rem" }}
+          onClick={initStage3}
+        >
+          save and continue
+        </Button>
+      </div>
+      <SnackBar
+        open={openSnack}
+        autoHideDuration={6000}
+        onClose={closeSnackbar}
+        message="Very Good"
+      />
+      <div
+        style={{
+          alignSelf: "center",
+          textAlign: "center",
+          marginTop: "5rem",
+          position: "relative",
+        }}
+        hidden
+        className="stage3End"
+      >
+        <h4
+          style={{
+            alignSelf: "center",
+            marginTop: "1rem",
+            width: "100%",
+          }}
+        >
+          Lorem Ipsum is simply dummy text of the printing and typesetting
+          industry. Lorem Ipsum has been the industry's standard dummy text ever
+          since the 1500s, when an unknown printer took a galley of type and
+          scrambled it to make a type specimen book. It has survived not only
+          five centuries, but also the leap into electronic typesetting,
+          remaining essentially unchanged. It was popularised in the 1960s with
+          the release of Letraset sheets containing Lorem Ipsum passages, and
+          more recently with desktop publishing software like Aldus PageMaker
+          including versions of Lorem Ipsum.
+        </h4>
+        <Button
+          variant="contained"
+          style={{ marginTop: "10rem" }}
+          onClick={startStage3}
+        >
+          start
+        </Button>
+      </div>
+      <div
+        style={{
+          alignSelf: "center",
+          textAlign: "center",
+          marginTop: "5rem",
+          position: "relative",
+        }}
+        hidden
+        className="stage3"
+      >
+        <div style={{ width: "50%", alignItems: "center" }}>
+          <h3
+            style={{ width: "100%", textAlign: "center" }}
+          >{`${aTMin} : ${aTSec}`}</h3>
+          <Fab
+            color={recordeStarted2 == false ? "primary" : "grey"}
+            aria-label="start Recording"
+            onClick={recordeStarted2 == false ? start2 : stop2}
+          >
+            {recordeStarted2 == false ? <HeadsetMic /> : <Pause />}
+          </Fab>
+          <AudioReactRecorder
+            canvasWidth="100"
+            canvasHeight="50"
+            state={record2}
+            onStop={onStop2}
+          />
+          <h3>stop recording</h3>
+        </div>
+        <TableContainer component={Paper} style={{ maxWidth: "50%" }}>
+          <Table sx={{ maxWidth: "100%" }} aria-label="caption table">
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.list1}>
+                  <TableCell align="center">{row.list1}</TableCell>
+                  <TableCell align="center">{row.list2}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </div>
+      <div
+        style={{
+          alignSelf: "center",
+          textAlign: "center",
+          marginTop: "5rem",
+          position: "relative",
+        }}
+        hidden
+        className="stage3End"
+      >
+        <h3
+          style={{ width: "100%", textAlign: "center" }}
+        >{`${aTMin} : ${aTSec}`}</h3>
+        <h2 style={{ width: "100%", textAlign: "center" }}>recording Time</h2>
+        <Button variant="contained" onClick={endSession}>
+          save and proceed
+        </Button>
+      </div>
+      <div
+        style={{
+          alignSelf: "center",
+          textAlign: "center",
+          marginTop: "5rem",
+          position: "relative",
+        }}
+        hidden
+        className="endSession"
+      >
+        <h2 style={{ width: "100%", textAlign: "center" }}>All Done</h2>
+        <Button variant="contained" onClick={finish}>
+          save and proceed
+        </Button>
+      </div>
     </div>
   );
 };

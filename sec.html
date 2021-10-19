@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<head> </head>
+<body>
+  <div
+    style="
+      background-color: beige;
+      width: 20vw;
+      height: 5vh;
+      display: none;
+      margin-right: auto;
+      margin-left: auto;
+      margin-top: 5rem;
+    "
+    class="snackbar"
+  ></div>
+  <img
+    src=""
+    alt=""
+    class="img"
+    style="
+      width: 80vw;
+      height: 75vh;
+      display: none;
+      margin-right: auto;
+      margin-left: auto;
+      margin-top: 5rem;
+    "
+  />
+</body>
+<script>
+  const { ipcRenderer } = require("electron");
+
+  ipcRenderer.on("img-sent", (e, data) => {
+    let img = document.querySelector(".img");
+    img.setAttribute("src", data);
+    img.style.display = "block";
+  });
+  ipcRenderer.on("img-hide", (e, data) => {
+    let img = document.querySelector(".img");
+    img.setAttribute("src", data);
+    img.style.display = "none";
+  });
+  ipcRenderer.on("msg-show", (e, data) => {
+    let snackbar = document.querySelector(".snackbar");
+    snackbar.innerHTML = data
+    snackbar.style.display = "block";
+    setTimeout(()=>{
+      snackbar.style.display = "none";
+    },1000)
+  });
+</script>
