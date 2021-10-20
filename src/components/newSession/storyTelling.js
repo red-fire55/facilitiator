@@ -16,10 +16,11 @@ import Paper from "@mui/material/Paper";
 import download from "downloadjs";
 import { ipcRenderer } from "electron";
 import db from "../../database/index";
+import { LocalConvenienceStoreOutlined } from "@mui/icons-material";
 
 let storyTelling = (props) => {
   //data declaration
-  let [sec, setSec] = useState(15);
+  let [sec, setSec] = useState(2);
   let [clicked, setClicked] = useState(false);
   let [record, setRecord] = useState(false);
   let [record2, setRecord2] = useState(false);
@@ -117,20 +118,27 @@ let storyTelling = (props) => {
     );
 
     canvasAudio[1].setAttribute("hidden", true);
-    endStage3();
   };
 
   //listener on the finish of the record
+  let blobToFile = (theBlob, fileName) => {
+    //A Blob() is almost a File() - it's just missing the two properties below which we will add
+    theBlob.lastModifiedDate = new Date();
+    theBlob.name = fileName;
+    return theBlob;
+  };
   let onStop = (audioData) => {
-    setAudio((audio = audioData.blob));
-    setRecordTime(
-      (recordTime = {
-        seconeds: aTSec,
-        minutes: aTMin,
-      })
-    );
     setClicked((clicked = false));
-    download(audioData.blob);
+    //old code to download and save the record
+    // download(audioData.blob, "record1.wav");
+    //new code
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      localStorage.setItem("record1", event.target.result);
+    };
+
+    reader.readAsDataURL(audioData.blob);
     let fRecorder = document.getElementsByClassName("fRecorder");
     let stage2End = document.getElementsByClassName("stage2End");
     fRecorder[0].setAttribute("hidden", true);
@@ -140,10 +148,16 @@ let storyTelling = (props) => {
   //listener on the finish of the record
   let onStop2 = (audioData) => {
     setClicked((clicked = false));
-    download(audioData.blob);
     let stage3 = document.getElementsByClassName("stage3");
     let stage3End = document.getElementsByClassName("stage3End");
 
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      localStorage.setItem("record2", event.target.result);
+    };
+
+    reader.readAsDataURL(audioData.blob);
     stage3[0].setAttribute("hidden", true);
     stage3[0].style.display = "none";
     stage3End[0].removeAttribute("hidden");
@@ -175,9 +189,30 @@ let storyTelling = (props) => {
     setSnack((openSnack = false));
   };
 
+  //turn blobs back
+  function dataURItoBlob(dataURI) {
+    // convert base64 to raw binary data held in a string
+    var byteString = atob(dataURI.split(",")[1]);
+
+    // separate out the mime component
+    var mimeString = dataURI.split(",")[0].split(":")[1].split(";")[0];
+
+    // write the bytes of the string to an ArrayBuffer
+    var arrayBuffer = new ArrayBuffer(byteString.length);
+    var _ia = new Uint8Array(arrayBuffer);
+    for (var i = 0; i < byteString.length; i++) {
+      _ia[i] = byteString.charCodeAt(i);
+    }
+
+    var dataView = new DataView(arrayBuffer);
+    var blob = new Blob([dataView], { type: mimeString });
+    return blob;
+  }
+
   //initiate phase 3
   let initStage3 = () => {
     openSnackbar();
+    let record = dataURItoBlob(localStorage.getItem("record1"));
     let stage2End = document.getElementsByClassName("stage2End");
     let stage3Start = document.getElementsByClassName("stage3Start");
     let pageTitle = document.getElementsByClassName("pageTitle");
@@ -197,6 +232,7 @@ let storyTelling = (props) => {
         setATSec((aTSec = 0));
         setATMin((aTMin = 0));
         localStorage.setItem("sessionId", res);
+        download(record, `first record session Number ${res}`);
       });
   };
 
@@ -207,22 +243,19 @@ let storyTelling = (props) => {
     stage3[0].removeAttribute("hidden");
     stage3[0].style.display = "flex";
     start2();
-    ipcRenderer.send("show-words",rows)
+    ipcRenderer.send("show-words", rows);
   };
-
-  //end stage 3
-  let endStage3 = () => {};
 
   // end session
   let endSession = () => {
-    ipcRenderer.send("hide-words")
+    ipcRenderer.send("hide-words");
     let stage3End = document.getElementsByClassName("stage3End");
     let sessionEnd = document.getElementsByClassName("endSession");
     stage3End[0].setAttribute("hidden", true);
     sessionEnd[0].removeAttribute("hidden");
 
     let session_id = localStorage.getItem("sessionId");
-
+    let record = dataURItoBlob(localStorage.getItem("record2"));
     db.sessions
       .where("id")
       .equals(Number(session_id))
@@ -235,15 +268,29 @@ let storyTelling = (props) => {
       .then(() => {
         setATSec((aTSec = 0));
         setATMin((aTMin = 0));
+        download(record, `seconed record session number ${session_id}`);
       });
   };
 
   //finish session
   let finish = () => {
-    props.onStart(false)
-    setTimeout(()=>{
-      props.history.go(0)
-    },3000)
+    let session_id = localStorage.getItem("sessionId");
+    let data;
+    db.sessions
+      .where("id")
+      .equals(Number(session_id))
+      .each((res) => {
+        data = res;
+        ipcRenderer.send("save", {
+          session: session_id,
+          info: data,
+        });
+      });
+    props.onStart(false);
+
+    setTimeout(() => {
+      props.history.go("/");
+    }, 3000);
   };
 
   //render method

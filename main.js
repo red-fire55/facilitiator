@@ -1,9 +1,11 @@
 "use strict";
 
 // Import parts of electron to use
-const { app, BrowserWindow, ipcMain } = require("electron");
-const path = require("path");
-const url = require("url");
+let { app, BrowserWindow, ipcMain } = require("electron");
+let path = require("path");
+let url = require("url");
+let fs = require("fs");
+let toBuffer = require("blob-to-buffer");
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -148,4 +150,24 @@ ipcMain.on("show-words", (e, data) => {
 
 ipcMain.on("hide-words", (e, data) => {
   secWindow.webContents.send("words-hide", data);
+});
+
+ipcMain.on("save", (e, data) => {
+  var fs = require("fs");
+  var dir = data.session;
+
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir);
+    fs.writeFile(
+      path.join(
+        __dirname,
+        data.session,
+        `elabsed times for session ${data.session}.json`
+      ),
+      JSON.stringify(data.info),
+      () => {
+        console.log("saved succefully");
+      }
+    );
+  }
 });

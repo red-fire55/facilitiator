@@ -11,3 +11,4 @@ db.open().catch((err) => {
 });
 
 export default db;
+
