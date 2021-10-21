@@ -121,16 +121,31 @@ let storyTelling = (props) => {
   };
 
   //listener on the finish of the record
-  let blobToFile = (theBlob, fileName) => {
-    //A Blob() is almost a File() - it's just missing the two properties below which we will add
-    theBlob.lastModifiedDate = new Date();
-    theBlob.name = fileName;
-    return theBlob;
-  };
+  function saveBlob(blob, fileName, blob2, fileName2) {
+    let reader = new FileReader();
+    let reader2 = new FileReader();
+    reader.onload = function () {
+      if (reader.readyState == 2) {
+        var buffer = new Buffer(reader.result);
+        ipcRenderer.send("SAVE-FILE", fileName, buffer);
+      }
+    };
+    reader2.onload = function () {
+      if (reader.readyState == 2) {
+        var buffer = new Buffer(reader.result);
+        ipcRenderer.send("SAVE-FILE2", fileName2, buffer);
+      }
+    };
+    reader.readAsArrayBuffer(blob);
+    reader2.readAsArrayBuffer(blob2);
+  }
+
   let onStop = (audioData) => {
     setClicked((clicked = false));
     //old code to download and save the record
     // download(audioData.blob, "record1.wav");
+    // code in da middle xD
+
     //new code
     const reader = new FileReader();
 
@@ -212,7 +227,6 @@ let storyTelling = (props) => {
   //initiate phase 3
   let initStage3 = () => {
     openSnackbar();
-    let record = dataURItoBlob(localStorage.getItem("record1"));
     let stage2End = document.getElementsByClassName("stage2End");
     let stage3Start = document.getElementsByClassName("stage3Start");
     let pageTitle = document.getElementsByClassName("pageTitle");
@@ -232,7 +246,6 @@ let storyTelling = (props) => {
         setATSec((aTSec = 0));
         setATMin((aTMin = 0));
         localStorage.setItem("sessionId", res);
-        download(record, `first record session Number ${res}`);
       });
   };
 
@@ -255,7 +268,7 @@ let storyTelling = (props) => {
     sessionEnd[0].removeAttribute("hidden");
 
     let session_id = localStorage.getItem("sessionId");
-    let record = dataURItoBlob(localStorage.getItem("record2"));
+
     db.sessions
       .where("id")
       .equals(Number(session_id))
@@ -268,23 +281,32 @@ let storyTelling = (props) => {
       .then(() => {
         setATSec((aTSec = 0));
         setATMin((aTMin = 0));
-        download(record, `seconed record session number ${session_id}`);
       });
   };
 
   //finish session
   let finish = () => {
     let session_id = localStorage.getItem("sessionId");
+    let record = dataURItoBlob(localStorage.getItem("record1"));
+    let record2 = dataURItoBlob(localStorage.getItem("record2"));
     let data;
     db.sessions
       .where("id")
       .equals(Number(session_id))
       .each((res) => {
         data = res;
-        ipcRenderer.send("save", {
-          session: session_id,
-          info: data,
-        });
+        setTimeout(() => {
+          ipcRenderer.send("save", {
+            session: session_id,
+            info: data,
+          });
+          saveBlob(
+            record,
+            `first record session ${session_id}.wav`,
+            record2,
+            `seconed record session ${session_id}.wav`
+          );
+        }, 1000);
       });
     props.onStart(false);
 

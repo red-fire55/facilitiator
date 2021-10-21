@@ -5,6 +5,7 @@ let { app, BrowserWindow, ipcMain } = require("electron");
 let path = require("path");
 let url = require("url");
 let fs = require("fs");
+let fse = require("fs-extra");
 let toBuffer = require("blob-to-buffer");
 
 // Keep a global reference of the window object, if you don't, the window will
@@ -131,6 +132,26 @@ app.on("activate", () => {
   }
 });
 
+//turn blobs back
+function dataURItoBlob(dataURI) {
+  // convert base64 to raw binary data held in a string
+  var byteString = atob(dataURI.split(",")[1]);
+
+  // separate out the mime component
+  var mimeString = dataURI.split(",")[0].split(":")[1].split(";")[0];
+
+  // write the bytes of the string to an ArrayBuffer
+  var arrayBuffer = new ArrayBuffer(byteString.length);
+  var _ia = new Uint8Array(arrayBuffer);
+  for (var i = 0; i < byteString.length; i++) {
+    _ia[i] = byteString.charCodeAt(i);
+  }
+
+  var dataView = new DataView(arrayBuffer);
+  var blob = new Blob([dataView], { type: mimeString });
+  return blob;
+}
+
 //listeners
 ipcMain.on("show-img", (e, data) => {
   secWindow.webContents.send("img-sent", data.img);
@@ -152,12 +173,15 @@ ipcMain.on("hide-words", (e, data) => {
   secWindow.webContents.send("words-hide", data);
 });
 
+let toWav = require("audiobuffer-to-wav");
+let DownloadManager = require("electron-download-manager");
+
 ipcMain.on("save", (e, data) => {
-  var fs = require("fs");
-  var dir = data.session;
+  let dir = data.session;
 
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir);
+
     fs.writeFile(
       path.join(
         __dirname,
@@ -169,5 +193,31 @@ ipcMain.on("save", (e, data) => {
         console.log("saved succefully");
       }
     );
+    ipcMain.on("SAVE-FILE", (event, fileName, buffer) => {
+      fse.outputFile(
+        path.join(__dirname, data.session, fileName),
+        buffer,
+        (err) => {
+          if (err) {
+            event.sender.send("ERROR", err.message);
+          } else {
+            event.sender.send("SAVED-FILE", path.join(__dirname, "hello"));
+          }
+        }
+      );
+    });
+    ipcMain.on("SAVE-FILE2", (event, fileName, buffer) => {
+      fse.outputFile(
+        path.join(__dirname, data.session, fileName),
+        buffer,
+        (err) => {
+          if (err) {
+            event.sender.send("ERROR", err.message);
+          } else {
+            event.sender.send("SAVED-FILE", path.join(__dirname, "hello"));
+          }
+        }
+      );
+    });
   }
 });
